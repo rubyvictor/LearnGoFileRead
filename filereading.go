@@ -3,18 +3,45 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"context"
+	"os"
+	"golang.org/x/sync/errgroup"
 )
 
+func readFiles(ctx context.Context, files []string) ([]string,error){
+	g, ctx := errgroup.WithContext(ctx)
+
+	results := make([]string, len(files))
+
+	for i, file := range files{
+		i,file := i,file
+		g.Go(func() error {
+			data, err := ioutil.ReadFile(file)
+			if err == nil {
+				results[i] = string(data)
+			}
+			return err
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 func main(){
-	datFile1,errFile1 := ioutil.ReadFile("fileRead.txt")
-	if errFile1 != nil {
-		panic(errFile1)
+	var files = []string{
+		"fileRead.txt",
+		"questions.txt",
 	}
 
-	datFile2, errFile2 := ioutil.ReadFile("questions.txt")
-	if errFile2 != nil {
-		panic(errFile2)
+	results, err := readFiles(context.Background(), files)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-
-	fmt.Print(string(datFile1),string(datFile2))
+	for _, result := range results{
+		fmt.Println(result)	
+	}
 }
